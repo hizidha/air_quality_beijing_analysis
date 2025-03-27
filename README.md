@@ -1,5 +1,8 @@
 # Air Quality Dashboard
 
+You can also access the dashboard online at:  
+👉 [https://airqualityanalyst-hizidha.streamlit.app/](https://airqualityanalyst-hizidha.streamlit.app/)
+
 ## Setup Environment - Anaconda
 ```
 conda create --name main-ds python=3.9
