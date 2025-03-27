@@ -1,0 +1,12 @@
+pandas
+numpy
+matplotlib
+seaborn
+glob2
+geopandas
+folium
+ipython
+os
+zipfile36
+streamlit
+streamlit-folium
