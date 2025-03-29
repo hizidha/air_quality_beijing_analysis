@@ -16,7 +16,7 @@ def load_data():
 df = load_data()
 
 # Sidebar
-st.sidebar.title("Air Quality Dashboard")
+st.sidebar.title("Air Quality Dashboard - v2")
 st.sidebar.subheader("Filter Data")
 station_options = ["All"] + list(df["station"].unique())
 selected_station = st.sidebar.selectbox("Pilih Stasiun Pemantauan", station_options)
