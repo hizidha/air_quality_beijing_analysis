@@ -16,103 +16,106 @@ def load_data():
 df = load_data()
 
 # Sidebar
-st.sidebar.title("Air Quality Dashboard - v2")
+st.sidebar.title("Air Quality Dashboard")
 st.sidebar.subheader("Filter Data")
-station_options = ["All"] + list(df["station"].unique())
+station_options = ["All Station"] + list(df["station"].unique())
 selected_station = st.sidebar.selectbox("Pilih Stasiun Pemantauan", station_options)
 
-# Apply filter to create a filtered dataframe
-if selected_station != "All":
-    filtered_df = df[df["station"] == selected_station]
-else:
-    filtered_df = df.copy()
+# Apply filter
+filtered_df = df if selected_station == "All Station" else df[df["station"] == selected_station]
 
-# Add season mapping to filtered data
-season_map = {1: 'Winter', 2: 'Winter', 3: 'Spring', 4: 'Spring', 5: 'Spring', 
-                6: 'Summer', 7: 'Summer', 8: 'Summer', 9: 'Fall', 10: 'Fall', 
-                11: 'Fall', 12: 'Winter'}
-filtered_df["season"] = filtered_df["month"].map(season_map)
-
-st.title("Analisis Kualitas Udara Beijing")
-st.write("Dashboard ini menyajikan analisis kualitas udara berdasarkan data historis.")
-
-# PM2.5 Distribution
-st.subheader("Distribusi Konsentrasi PM2.5")
-fig, ax = plt.subplots()
-sns.histplot(filtered_df["PM2.5"], bins=50, kde=True, color='red', ax=ax)
-ax.set_xlabel("Konsentrasi PM2.5")
-ax.set_ylabel("Frekuensi")
-ax.set_title("Histogram PM2.5 untuk " + (selected_station if selected_station != "All" else "Semua Stasiun"))
-st.pyplot(fig)
-
-# Correlation Heatmap (Excluding year, month, day, hour)
-st.subheader("Korelasi Antar Faktor Polusi Udara")
-cols_to_exclude = ["year", "month", "day", "hour"]
-num_cols = filtered_df.select_dtypes(include=[np.number]).columns.difference(cols_to_exclude)
-fig, ax = plt.subplots(figsize=(10, 8))
-sns.heatmap(filtered_df[num_cols].corr(), annot=True, cmap="coolwarm", ax=ax)
-ax.set_title("Matriks Korelasi Faktor Kualitas Udara")
-st.pyplot(fig)
-
-# Monthly PM2.5 Trend per Station
-st.subheader("Tren Bulanan Rata-rata PM2.5")
-df_monthly = filtered_df.groupby([filtered_df["datetime"].dt.to_period("M")])["PM2.5"].mean()
+# Visualisasi 1: Tren Tahunan PM2.5
+st.subheader("Tren Tahunan Rata-rata PM2.5")
+df_trend = filtered_df.groupby(["station", "year"])["PM2.5"].mean().reset_index()
 fig, ax = plt.subplots(figsize=(12, 6))
-df_monthly.plot(ax=ax)
+sns.lineplot(data=df_trend, x="year", y="PM2.5", hue="station", marker="o", ax=ax)
 ax.set_xlabel("Tahun")
 ax.set_ylabel("Rata-rata PM2.5")
-ax.set_title("Perubahan PM2.5 dari Waktu ke Waktu untuk " + (selected_station if selected_station != "All" else "Semua Stasiun"))
+ax.set_title("Tren PM2.5 di Setiap Station dari Tahun ke Tahun")
+plt.xticks(df_trend["year"].unique())
+plt.grid()
 st.pyplot(fig)
 
-# Air Pollution Patterns by Season
+# Visualisasi 2: Polusi Udara Berdasarkan Musim
 st.subheader("Pola Polusi Udara Berdasarkan Musim")
-df_season = filtered_df.groupby("season")["PM2.5"].mean()
-fig, ax = plt.subplots(figsize=(12, 6))
-df_season.plot(kind='bar', ax=ax, color='skyblue')
+season_map = {1: 'Winter', 2: 'Winter', 3: 'Spring', 4: 'Spring', 5: 'Spring', 
+            6: 'Summer', 7: 'Summer', 8: 'Summer', 9: 'Fall', 10: 'Fall', 
+            11: 'Fall', 12: 'Winter'}
+df["season"] = df["month"].map(season_map)
+filtered_df["season"] = filtered_df["month"].map(season_map)
+
+df_season_avg = df.groupby("season")["PM2.5"].mean().reset_index()
+df_season_filtered = filtered_df.groupby("season")["PM2.5"].mean().reset_index()
+
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.barplot(x="season", y="PM2.5", data=df_season_avg if selected_station == "All Station" else df_season_filtered, palette="coolwarm", ax=ax)
 ax.set_xlabel("Musim")
-ax.set_ylabel("Rata-rata PM2.5")
-ax.set_title("Polusi Udara Berdasarkan Musim untuk " + (selected_station if selected_station != "All" else "Semua Stasiun"))
+ax.set_ylabel("Rata-rata Polusi")
+ax.set_title("Pola Polusi Udara Berdasarkan Musim")
 st.pyplot(fig)
 
-# Air Pollution Map
-st.subheader("Peta Sebaran Polusi Udara di Beijing")
-m = folium.Map(location=[39.9, 116.4], zoom_start=10)
+# Visualisasi 3: Korelasi PM2.5 dan Faktor Cuaca
+st.subheader("Korelasi PM2.5 dan Faktor Cuaca")
+correlation = filtered_df[["PM2.5", "TEMP", "PRES", "DEWP"]].corr()
+fig, ax = plt.subplots(figsize=(8, 6))
+sns.heatmap(correlation, annot=True, cmap="coolwarm", linewidths=0.5, vmin=-1, vmax=1, fmt=".2f", ax=ax)
+ax.set_title("Heatmap Korelasi PM2.5 dan Faktor Cuaca")
+st.pyplot(fig)
 
-station_coords = {
-    "Aotizhongxin": [39.982, 116.417], "Changping": [40.218, 116.23],
-    "Dingling": [40.29, 116.22], "Dongsi": [39.929, 116.417],
-    "Guanyuan": [39.933, 116.36], "Gucheng": [39.911, 116.184],
-    "Huairou": [40.317, 116.62], "Nongzhanguan": [39.933, 116.45],
-    "Shunyi": [40.125, 116.65], "Tiantan": [39.886, 116.417],
-    "Wanliu": [39.95, 116.283], "Wanshouxigong": [39.886, 116.366]
-}
+# Visualisasi 4: Stasiun dengan Rata-rata PM2.5 Tertinggi
+st.subheader("Stasiun dengan Rata-rata PM2.5 Tertinggi")
+df_pollution_rank = df.groupby("station", as_index=False)["PM2.5"].mean()
+df_pollution_rank = df_pollution_rank.sort_values(by="PM2.5", ascending=False)
 
-def get_color(value):
-    if value > 150:
-        return "darkred"
-    elif value > 100:
-        return "red"
-    elif value > 50:
+if selected_station == "All Station":
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.barplot(data=df_pollution_rank, x="PM2.5", y="station", hue="station", palette="coolwarm", legend=False, ax=ax)
+    ax.set_xlabel("Rata-rata PM2.5")
+    ax.set_ylabel("Stasiun")
+    ax.set_title("Stasiun dengan Rata-rata PM2.5 Tertinggi")
+    ax.grid(axis="x", linestyle="--", alpha=0.7)
+    st.pyplot(fig)
+else:
+    avg_pm25 = df["PM2.5"].mean()
+    station_pm25 = df[df["station"] == selected_station]["PM2.5"].mean()
+    df_selected = pd.DataFrame({"station": [selected_station, "All Station"], "PM2.5": [station_pm25, avg_pm25]})
+    
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.barplot(data=df_selected, x="PM2.5", y="station", palette="coolwarm", ax=ax)
+    ax.set_xlabel("Rata-rata PM2.5")
+    ax.set_ylabel("Kategori")
+    ax.set_title("Perbandingan Rata-rata PM2.5")
+    st.pyplot(fig)
+
+# Visualisasi 5: Peta Distribusi Polusi Udara
+def get_color(pm_value):
+    if pm_value <= 50:
+        return "green"
+    elif pm_value <= 100:
+        return "yellow"
+    elif pm_value <= 150:
         return "orange"
     else:
-        return "green"
+        return "red"
 
-# Use filtered data for the map
-if selected_station != "All":
-    df_avg_pm = filtered_df.groupby("station")["PM2.5"].mean().reset_index()
-else:
-    df_avg_pm = df.groupby("station")["PM2.5"].mean().reset_index()
+st.subheader("Peta Distribusi Polusi Udara")
+station_coords = {"Aotizhongxin": [39.982, 116.417], "Changping": [40.218, 116.23],
+                "Dingling": [40.29, 116.22], "Dongsi": [39.929, 116.417],
+                "Guanyuan": [39.933, 116.36], "Gucheng": [39.911, 116.184],
+                "Huairou": [40.317, 116.62], "Nongzhanguan": [39.933, 116.45],
+                "Shunyi": [40.125, 116.65], "Tiantan": [39.886, 116.417],
+                "Wanliu": [39.95, 116.283], "Wanshouxigong": [39.886, 116.366]}
 
-for _, row in df_avg_pm.iterrows():
-    if row["station"] in station_coords:
-        folium.CircleMarker(
-            location=station_coords[row["station"]],
-            radius=max(5, row["PM2.5"] / 20),
-            color=get_color(row["PM2.5"]),
-            fill=True,
-            fill_color=get_color(row["PM2.5"]),
-            fill_opacity=0.6,
-            popup=f"{row['station']}: {row['PM2.5']:.2f}"
-        ).add_to(m)
-
+df_pollution_rank = df_pollution_rank[df_pollution_rank["station"] == selected_station] if selected_station != "All Station" else df_pollution_rank
+m = folium.Map(location=[39.9, 116.4], zoom_start=10)
+for _, row in df_pollution_rank.iterrows():
+    folium.CircleMarker(
+        location=[station_coords.get(row["station"], [np.nan, np.nan])[0], station_coords.get(row["station"], [np.nan, np.nan])[1]],
+        radius=row["PM2.5"] / 10,
+        color=get_color(row["PM2.5"]),
+        fill=True,
+        fill_color=get_color(row["PM2.5"]),
+        fill_opacity=0.7,
+        popup=f"{row['station']}: {row['PM2.5']:.2f}"
+    ).add_to(m)
 folium_static(m)
